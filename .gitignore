@@ -1,0 +1,5 @@
+.idea/
+venv/
+puck_world.egg-info/
+__pycache__/
+
