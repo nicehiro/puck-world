@@ -6,8 +6,8 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 
-from puck_world.envs.agent import Agent
-from puck_world.envs.agent_type import AgentType
+from puck_world.envs.multi_agents.agent import Agent
+from puck_world.envs.multi_agents.agent_type import AgentType
 
 
 class PuckWorld(gym.Env):
