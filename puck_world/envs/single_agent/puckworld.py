@@ -5,6 +5,7 @@ from enum import unique, Enum
 import gym
 from gym import spaces
 from gym.utils import seeding
+import numpy as np
 
 
 class Entity():
@@ -33,7 +34,8 @@ class Agent(Entity):
         self.vector = [0, 0]
         self.vector_threshold = [-5, 5]
         self.movable = True
-        self.radius = 30
+        self.radius = 0.3
+        self.unit = 100
         self.color = (1.0, 0.0, 0.0)
 
 
@@ -44,7 +46,8 @@ class Landmark(Entity):
         # state info: [mark_x, mark_y]
         self.state = [0, 0]
         self.movable = False
-        self.radius = 10
+        self.unit = 100
+        self.radius = 0.1
         self.color = (0.0, 1.0, 0.0)
 
 
@@ -55,8 +58,9 @@ class PuckWorld(gym.Env):
     }
 
     def __init__(self):
-        self.width = 300
-        self.height = 300
+        self.width = 3
+        self.height = 3
+        self.unit = 100
         self.time = 0
         self.rewards = []
         self.viewer = None
@@ -64,14 +68,13 @@ class PuckWorld(gym.Env):
         # action_space
         # 0: left   1: right    2:up    3:down
         self.action_space = spaces.Discrete(4)
+        self.observation_space = spaces.Box(low=np.array([0, 0, -5, -5, 0, 0]),
+                                            high=np.array([self.width, self.height, 5, 5, self.width, self.height]))
         self.agent = Agent()
         self.landmark = Landmark()
         self.state = None
         self.acclerate = 1
-        # self.seed()
-
-    def set_agent(self, agent: Agent):
-        self.agent = agent
+        self.seed()
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -100,8 +103,8 @@ class PuckWorld(gym.Env):
             # down
             self.agent.vector[1] -= self.acclerate
         self.__cal_real_vector()
-        self.agent.state[0] += self.agent.vector[0]
-        self.agent.state[1] += self.agent.vector[1]
+        self.agent.state[0] += self.agent.vector[0] / self.unit
+        self.agent.state[1] += self.agent.vector[1] / self.unit
         if self.agent.state[0] < 0:
             self.agent.state[0] = 0
         if self.agent.state[0] > self.width:
@@ -143,20 +146,20 @@ class PuckWorld(gym.Env):
             return
         if self.viewer is None:
             from gym.envs.classic_control import rendering
-            self.viewer = rendering.Viewer(self.width, self.height)
-            landmark = rendering.make_circle(self.landmark.radius)
+            self.viewer = rendering.Viewer(self.width*self.unit, self.height*self.unit)
+            landmark = rendering.make_circle(self.landmark.radius*self.unit)
             landmark.set_color(*self.landmark.color)
             self.viewer.add_geom(landmark)
             self.landmark_trans = rendering.Transform()
             landmark.add_attr(self.landmark_trans)
 
-            agent_obj = rendering.make_circle(self.agent.radius)
+            agent_obj = rendering.make_circle(self.agent.radius*self.unit)
             agent_obj.set_color(*self.agent.color)
             self.viewer.add_geom(agent_obj)
             self.agent_trans = rendering.Transform()
             agent_obj.add_attr(self.agent_trans)
-        self.agent_trans.set_translation(*self.agent.state)
-        self.landmark_trans.set_translation(*self.landmark.state)
+        self.agent_trans.set_translation(*[x * self.unit for x in self.agent.state])
+        self.landmark_trans.set_translation(*[x * self.unit for x in self.landmark.state])
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
 

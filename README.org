@@ -1,0 +1,24 @@
+* PuckWorld
+PuckWorld is a reinforcement-learning environment.
+
+** Requirements
+- OpenAI Gym
+- Numpy
+
+** Usage
+#+BEGIN_SRC sh
+cd puck-world
+pip install -e .
+#+END_SRC
+
+** Environments
+*** Single Agent
+**** [[./puck_world/envs/single_agent/puckworld.py][Action Space Discrete]]
+| Observation Space | Action Space |
+|-------------------+--------------|
+| Box(6,)           | Discrete(4,) |
+
+**** [[./puck_world/envs/single_agent/puckworld_continuous.py][Action Space Continuous]]
+| Observation Space | Action Space |
+|-------------------+--------------|
+| Box(6,)           | Box(1,)      |

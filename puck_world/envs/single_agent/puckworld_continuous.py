@@ -35,7 +35,8 @@ class Agent(Entity):
         self.vector_threshold = [-5, 5]
         self.accelerate = 2
         self.movable = True
-        self.radius = 30
+        self.radius = 0.3
+        self.unit = 100
         self.color = (1.0, 0.0, 0.0)
 
     def update_vector(self, radian: float):
@@ -48,8 +49,8 @@ class Agent(Entity):
                 self.vector[i] = self.vector_threshold[0]
 
     def update_state(self):
-        self.state[0] += self.vector[0]
-        self.state[1] += self.vector[1]
+        self.state[0] += self.vector[0] / self.unit
+        self.state[1] += self.vector[1] / self.unit
 
 
 class Landmark(Entity):
@@ -59,7 +60,8 @@ class Landmark(Entity):
         # state info: [mark_x, mark_y]
         self.state = [0, 0]
         self.movable = False
-        self.radius = 10
+        self.radius = 0.1
+        self.unit = 100
         self.color = (0.0, 1.0, 0.0)
 
 
@@ -70,8 +72,9 @@ class PuckWorld(gym.Env):
     }
 
     def __init__(self):
-        self.width = 300
-        self.height = 300
+        self.width = 3
+        self.height = 3
+        self.unit = 100
         self.time = 0
         self.rewards = []
         self.viewer = None
@@ -83,7 +86,7 @@ class PuckWorld(gym.Env):
         # observation space
         # (agent_x, agent_y, agent_v_x, agent_v_y, mark_x, mark_y)
         self.observation_space = spaces.Box(low=np.array([0, 0, -5, -5, 0, 0]),
-                                            high=np.array([300, 300, 5, 5, 300, 300]),
+                                            high=np.array([3, 3, 5, 5, 3, 3]),
                                             dtype=np.float)
         self.agent = Agent()
         self.landmark = Landmark()
@@ -125,14 +128,10 @@ class PuckWorld(gym.Env):
         return reward
 
     def __concat_state(self):
-        a_s = [x / 100 for x in self.agent.state]
-        l_s = [x / 100 for x in self.landmark.state]
-        return a_s + self.agent.vector + l_s
+        return self.agent.state + self.agent.vector + self.landmark.state
 
     def reset(self):
         rand_wrap = lambda x: x * random.random()
-        self.agent.state = list(map(rand_wrap, [self.width, self.height]))
-        self.agent.vector = [0, 0]
         self.landmark.state = list(map(rand_wrap, [self.width, self.height]))
         self.state = self.__concat_state()
         return self.state
@@ -145,20 +144,20 @@ class PuckWorld(gym.Env):
             return
         if self.viewer is None:
             from gym.envs.classic_control import rendering
-            self.viewer = rendering.Viewer(self.width, self.height)
-            landmark = rendering.make_circle(self.landmark.radius)
+            self.viewer = rendering.Viewer(self.width*self.unit, self.height*self.unit)
+            landmark = rendering.make_circle(self.landmark.radius*self.unit)
             landmark.set_color(*self.landmark.color)
             self.viewer.add_geom(landmark)
             self.landmark_trans = rendering.Transform()
             landmark.add_attr(self.landmark_trans)
 
-            agent_obj = rendering.make_circle(self.agent.radius)
+            agent_obj = rendering.make_circle(self.agent.radius*self.unit)
             agent_obj.set_color(*self.agent.color)
             self.viewer.add_geom(agent_obj)
             self.agent_trans = rendering.Transform()
             agent_obj.add_attr(self.agent_trans)
-        self.agent_trans.set_translation(*self.agent.state)
-        self.landmark_trans.set_translation(*self.landmark.state)
+        self.agent_trans.set_translation(*[x * self.unit for x in self.agent.state])
+        self.landmark_trans.set_translation(*[x * self.unit for x in self.landmark.state])
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
 
