@@ -121,10 +121,7 @@ class PuckWorld(gym.Env):
         return self.state, self.__get_reward(), self.__is_done(), info
 
     def __get_reward(self):
-        reward = - math.exp(1e-4 * self.__dis(*self.agent.state, *self.landmark.state))
-        a_x, a_y = self.agent.state
-        if a_x == 0 or a_y == 0 or a_x == self.width or a_y == self.height:
-            reward *= 10
+        reward = 1 - math.exp(1e-2 * self.__dis(*self.agent.state, *self.landmark.state))
         return reward
 
     def __concat_state(self):
