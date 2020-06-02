@@ -22,6 +22,20 @@ class Entity():
 class EntityType(Enum):
     Agent = 0
     Landmark = 1
+    Obstacle = 2
+
+
+class Obstacle(Entity):
+    def __init__(self, state, name='obstacle'):
+        self.type = EntityType.Landmark
+        self.name = name
+        # state info: [mark_x, mark_y]
+        self.state = state
+        self.movable = False
+        self.height = 0.2
+        self.width = 1.5
+        self.unit = 100
+        self.color = (0.0, 0.0, 1.0)
 
 
 class Agent(Entity):
@@ -35,7 +49,7 @@ class Agent(Entity):
         self.vector_threshold = [-5, 5]
         self.accelerate = 2
         self.movable = True
-        self.radius = 0.3
+        self.radius = 0.15
         self.unit = 100
         self.color = (1.0, 0.0, 0.0)
 
@@ -90,6 +104,9 @@ class PuckWorld(gym.Env):
                                             dtype=np.float)
         self.agent = Agent()
         self.landmark = Landmark()
+        self.obstacles_n = 1
+        self.obstacles = [Obstacle(state=[0, 1]),
+                          Obstacle(state=[2, 1])]
         self.state = None
         # self.seed()
 
@@ -106,6 +123,7 @@ class PuckWorld(gym.Env):
 
     def step(self, action):
         action = action[0]
+        old_state = self.agent.state.copy()
         self.agent.update_vector(action)
         self.agent.update_state()
         if self.agent.state[0] < 0:
@@ -116,13 +134,24 @@ class PuckWorld(gym.Env):
             self.agent.state[1] = 0
         if self.agent.state[1] > self.height:
             self.agent.state[1] = self.height
+        # obstacles
+        for obs in self.obstacles:
+            if obs.state[1] < self.agent.state[1] < obs.state[1]+obs.height:
+                if obs.state[0] < self.agent.state[0] < obs.state[0]+obs.width:
+                    self.agent.state = old_state
+                    break
         self.state = self.__concat_state()
         info = {}
         return self.state, self.__get_reward(), self.__is_done(), info
 
     def __get_reward(self):
-        reward = 1 - math.exp(1e-2 * self.__dis(*self.agent.state, *self.landmark.state))
+        # reward = 1 - math.exp(1e-2 * self.__dis(*self.agent.state, *self.landmark.state))
+        reward = 1 if self.__is_done() else 0
         return reward
+
+    def __is_done(self):
+        return math.sqrt((self.agent.state[0]-self.landmark.state[0])**2 + (self.agent.state[1]-self.landmark.state[1])**2) \
+               < self.agent.radius + self.landmark.radius
 
     def __concat_state(self):
         return self.agent.state + self.agent.vector + self.landmark.state
@@ -153,6 +182,15 @@ class PuckWorld(gym.Env):
             self.viewer.add_geom(agent_obj)
             self.agent_trans = rendering.Transform()
             agent_obj.add_attr(self.agent_trans)
+
+            for obs in self.obstacles:
+                v = [(obs.state[0]*self.unit, obs.state[1]*self.unit),
+                     ((obs.state[0]+obs.width)*self.unit, obs.state[1]*self.unit),
+                     ((obs.state[0]+obs.width)*self.unit, (obs.state[1]+obs.height)*self.unit),
+                     (obs.state[0]*self.unit, (obs.state[1]+obs.height)*self.unit)]
+                obs_obj = rendering.make_polygon(v, filled=True)
+                obs_obj.set_color(*obs.color)
+                self.viewer.add_geom(obs_obj)
         self.agent_trans.set_translation(*[x * self.unit for x in self.agent.state])
         self.landmark_trans.set_translation(*[x * self.unit for x in self.landmark.state])
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
@@ -165,6 +203,6 @@ if __name__ == '__main__':
         for _ in range(100):
             env.render(close=False)
             a = env.action_space.sample()
-            _, _, done, _ = env.step(a.item())
+            _, _, done, _ = env.step(a)
             if done:
                 break
